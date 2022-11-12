@@ -45,15 +45,16 @@ end
 ###############################################################################
 
 desc "Generate derivative image files from collection objects"
-task :generate_derivatives, [:thumbs_size, :small_size, :density, :missing, :im_executable] do |t, args|
+task :generate_derivatives, [:thumbs_size, :small_size, :density, :missing, :im_executable, :nth_video_frame] do |t, args|
 
-  # set default arguments 
+  # set default arguments
   args.with_defaults(
     :thumbs_size => "400x400",
     :small_size => "800x800",
     :density => "300",
     :missing => "true",
     :im_executable => "magick",
+    :nth_video_frame => "200",
   )
 
   # set the folder locations
@@ -67,10 +68,11 @@ task :generate_derivatives, [:thumbs_size, :small_size, :density, :missing, :im_
   # support these file types
   EXTNAME_TYPE_MAP = {
     '.tiff' => :image,
-    '.tif' => :image,  
+    '.tif' => :image,
     '.jpg' => :image,
     '.png' => :image,
-    '.pdf' => :pdf
+    '.pdf' => :pdf,
+    '.mp4' => :video,
   }
 
   # CSV output
@@ -78,7 +80,7 @@ task :generate_derivatives, [:thumbs_size, :small_size, :density, :missing, :im_
   field_names = "object_location,image_small,image_thumb".split(",")
   # open file
   CSV.open(list_name, "w") do |csv|
-    # write the header fields 
+    # write the header fields
     csv << field_names
 
     # Iterate over files in objects directory.
@@ -106,6 +108,7 @@ task :generate_derivatives, [:thumbs_size, :small_size, :density, :missing, :im_
         case file_type
         when :image then "#{args.im_executable} #{filename}"
         when :pdf then "#{args.im_executable} -density #{args.density} #{filename}[0]"
+        when :video then "#{args.im_executable} \"#{filename}\"[#{args.nth_video_frame}]"
         end
 
       # Get the lowercase filename without any leading path and extension.
@@ -115,18 +118,18 @@ task :generate_derivatives, [:thumbs_size, :small_size, :density, :missing, :im_
       thumb_filename=File.join([thumb_image_dir, "#{base_filename}_th.jpg"])
       if args.missing == 'false' or !File.exists?(thumb_filename)
         puts "Creating: #{thumb_filename}";
-        system("#{cmd_prefix} -resize #{args.thumbs_size} -flatten #{thumb_filename}")
+        system("#{cmd_prefix} -resize #{args.thumbs_size} -flatten \"#{thumb_filename}\"")
       else
-        puts "Skipping: #{thumb_filename} already exists"
+        puts "Skipping: \"#{thumb_filename}\" already exists"
       end
 
       # Generate the small image.
       small_filename = File.join([small_image_dir, "#{base_filename}_sm.jpg"])
       if args.missing == 'false' or !File.exists?(small_filename)
         puts "Creating: #{small_filename}";
-        system("#{cmd_prefix} -resize #{args.small_size} -flatten #{small_filename}")
+        system("#{cmd_prefix} -resize #{args.small_size} -flatten \"#{small_filename}\"")
       else
-        puts "Skipping: #{small_filename} already exists"
+        puts "Skipping: \"#{small_filename}\" already exists"
       end
       csv << ["/"+filename,"/"+small_filename,"/"+thumb_filename]
     end
